@@ -155,15 +155,15 @@ and the aggressive learning rate forces rapid changes. But when the augmentation
 
 ## I will highlight the best models out of each experiment in this section
 
-### Predictions U-Net + No Augmentation and Learning Rate of 0.1
+### Predictions U-Net++ + No Augmentation and Learning Rate of 0.1
 
 ![image](https://github.com/user-attachments/assets/7a891122-06c5-4e50-b417-43ed5c4d8d5e)
 
-### Predictions U-Net++ + No Augmentation and Learning Rate of 0.01
+### Predictions U-Net + No Augmentation and Learning Rate of 0.01
 
 ![image](https://github.com/user-attachments/assets/01c2eca7-7c4b-442a-8e8c-0799e58ae926)
 
-### Predictions U-Net++ + No Augmentation and Learning Rate of 0.01
+### Predictions U-Net + No Augmentation and Learning Rate of 0.01
 
 ![image](https://github.com/user-attachments/assets/2f35aa8c-ddff-4f17-ad3e-bb42c916206b)
 
