@@ -1,5 +1,5 @@
 # Introduction
-This work is a part of experimental study. In this work I tried different Deep Learning models to solve a medical segmentation problem. The data set I will perform my experiments on contains endoscopic images of tools and their ground truth masks.
+This work is a part of an experimental study. In this work, I tried different Deep Learning models to solve a medical segmentation problem. The data set I will perform my experiments on contains endoscopic images of tools and their ground truth masks.
 > [!IMPORTANT]  
 > Unfortunately Github doesn't allow previews for this Jupyter Notebook because it's too large. Because of that I attached a pdf file of my code so people who are interested still can explore it from github. But the code is also available for downloading. I will also discuss the result and choice in this paper.
 
@@ -9,7 +9,7 @@ The Kvasir-Instrument dataset (size 170 MB) contains 590 endoscopic tool images 
 https://datasets.simula.no/kvasir-instrument/
 
 ## Metrics
-In this experiment I used a standard metrics such as:
+In this experiment, I used standard metrics such as:
 - Train loss/Validation Loss
 - Validation Accuracy/Train Accuracy
 - Train Dice/Validation Dice
@@ -30,9 +30,9 @@ I have also used a separate function to evaluate the model using the same metric
 - setting it to evaluation mode,
 - computing metrics,
 - averaging across the batches,
-- storing metrics.
+- Storing metrics.
  
-This pipeline ensures thattest metrics reflect the performance of the best model on unseen test data, without influencing training decisions.
+This pipeline ensures that test metrics reflect the performance of the best model on unseen test data, without influencing training decisions.
 
 ## Activation Function (sigmoid)
 I use the BCEloss function in my work.  It transforms the raw network outputs (logits) into values between 0 and 1, which can be interpreted as probabilities for the binary classes (object vs. background).
@@ -63,7 +63,7 @@ I used the Albumentations library to define augmentations in this work.
 - A.Normalize. This normalizes the pixel values based on the default mean and standard deviation
 - ToTensorV2. Converts the processed images and masks into PyTorch tensors.
 
-There is also a separate option called No Augmentation, it only consist of resize, normalize and converting to tensor, it is made so I could train model with or without augmentation.
+There is also a separate option called No Augmentation, it only consists of resize, normalize and convert to tensor. It is made so I can train a model with or without augmentation.
 
 # Models
 In this experiment I have used and compared 3 Deep Learning models: U-Net, U-Net++, FPN. And in this section I will try to explain how they work and their structure.
@@ -76,7 +76,7 @@ Encoder:
 - Downsampling. After each block, a max pooling layer reduces the spatial dimensions by a factor of 2, which helps the network learn context and global features.
 
 Bottleneck:
-- Located at the last parts of the network, the bottleneck is made to capture the most abstract and compressed representation of the input. It is implemented with the same convolutional block structure, but with a higher number of features (channels).
+- Located at the last parts of the network, the bottleneck is made to capture the most abstract and compressed representation of the input. It is implemented with the same convolutional block structure but with a higher number of features (channels).
 
 Decoder:
 - Upsampling. The decoder uses transposed convolutions to upsample feature maps. This increases the spatial dimensions gradually.
@@ -84,10 +84,10 @@ Decoder:
 - Decoder Blocks. The concatenated features are then processed with additional convolutional blocks to refine the segmentation map.
 
 ## U-net++
-UNet++ builds on the original UNet design by introducing nested skip connections and feature re-aggregation. The idea is to bridge the gap between decoder and encoder and improve performance.
+UNet++ builds on the original UNet design by introducing nested skip connections and feature re-aggregation. The idea is to bridge the gap between the decoder and encoder and improve performance.
 
 Encoder:
-- Pretrained Backbone. The model uses a pretrained ResNet34 as its encoder. This backbone provides robust, multi-scale features and consists of 4 layers starting with 64 and doubling its size till it reaches 512 in the last layer.
+- Pretrained Backbone. The model uses a pre-trained ResNet34 as its encoder. This backbone provides robust, multi-scale features and consists of 4 layers starting with 64 and doubling its size till it reaches 512 in the last layer.
 - The layers are processed sequentially, with intermediate downsampling similar to UNet.
 
 Decoder:
@@ -118,16 +118,16 @@ Feature Merging:
 Final Segmentation:
 - A final segmentation head reduces the merged feature map to the desired number of output channels. The result is then upsampled to match the original input dimensions, and a sigmoid activation produces the final segmentation map.
 
-## Optimizer, Learning Rate Scheduler and Hyperparametrs.
+## Optimizer, Learning Rate Scheduler and Hyperparameters.
 
 Adam Optimizer:
 - Adam combines the benefits of both Momentum and RMSprop. It maintains per-parameter learning rates and adapts them based on estimates of first and second moments of the gradients.
 
 Reduce on Plateau:
-- This scheduler monitors a specific metric (in my case, the validation loss) and reduces the learning rate by a given factor (0.5) if the metric does not improve for a specified number of epochs (patience=2 in my case).
+- This scheduler monitors a specific metric (in my case, the validation loss) and reduces the learning rate by a given factor (0.5) if the metric does not improve for a specified number of epochs (patience = 2 in my case).
 
 Hyperparameters:
-- I didn't include too many parameters in this experiment but the ones that are there were chosen after a couple of experiments (not all of them were included). It is worth mentioning that Adam often gets used with a small learning rate (0.001 or even 0.0001) in my experiment I started with 0.1 and decreased it in the next experiments.
+- I didn't include too many parameters in this experiment but the ones that are there were chosen after a couple of experiments (not all of them were included). It is worth mentioning that Adam often gets used with a small learning rate (0.001 or even 0.0001) in my experime,nt I started with 0.1 and decreased it in the next experiments.
 
 ## Running models, Results and Explanation.
 
@@ -148,10 +148,10 @@ The number of epochs was set to a 60, not all the models (across different exper
 ![image](https://github.com/user-attachments/assets/60359995-1114-4a38-a117-0f7f205af3d8)
 
 
-Not surprisingly but model with augmentation performed better than the one without it, with one exception. And across all 3 experiments models with Augmentation + a learning rate of 0.001 performed the best. The best model, out of the 3 presented, according to a test metrics were U-Net and the second best was FPN.
-It is worth mentioning that in the first experiment with no augmentation and relatively high learning rate for this optimizer, U-net ++ outperformed the rest of the models.
-If I have to make a suggestion why that happened then I would probably say because augmentation and high learning rate did not allow other models to get available variability and take advantage of high dimensionality, also more complex models(FPN) tend to overfit with no augmentation. Under this conditions nested skip connections might help the model explore a larger space of representations quickly
-and the aggressive learning rate forces rapid changes. But when the augmentation was applied and learning rates were tuned down it caused slower convergence and maybe an overfitted model more than before. In other words its complexity is a double-edged sword.
+Not surprisingly but model with augmentation performed better than the one without it, with one exception. And across all 3 experiments models with Augmentation + a learning rate of 0.001 performed the best. The best model, out of the 3 presented, according to test metrics were U-Net and the second best was FPN.
+It is worth mentioning that in the first experiment with no augmentation and relatively high learning rate for this optimizer, U-NET ++ outperformed the rest of the models.
+If I have to make a suggestion why that happened then I would probably say that it was because augmentation and high learning rate did not allow other models to get available variability and take advantage of high dimensionality. Also, more complex models(FPN) tend to overfit with no augmentation. Under these conditions, nested skip connections might help the model explore a larger space of representations quickly
+and the aggressive learning rate forces rapid changes. But when the augmentation was applied and learning rates were tuned down, it caused slower convergence and maybe an overfitted model more than before. In other word,s its complexity is a double-edged sword.
 
 ## I will highlight the best models out of each experiment in this section
 
