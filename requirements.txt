@@ -1,0 +1,9 @@
+torch>=2.0
+torchvision>=0.15
+albumentations>=1.4
+opencv-python-headless>=4.8
+numpy
+pandas
+matplotlib
+requests
+tqdm

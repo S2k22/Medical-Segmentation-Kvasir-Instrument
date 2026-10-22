@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kvasir-seg"
+version = "1.0.0"
+description = "Surgical instrument segmentation in endoscopy images: U-Net vs UNet++ vs FPN on Kvasir-Instrument"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Mykhailo Karpiuk" }]
+license = { text = "MIT" }
+dependencies = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "albumentations>=1.4",
+    "opencv-python-headless>=4.8",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "requests",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+directml = ["torch-directml"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["notebooks", "*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B905"]  # zip(strict=...) is noise for fixed-length module lists
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,182 +1,164 @@
-# Introduction
-This work is a part of an experimental study. In this work, I tried different Deep Learning models to solve a medical segmentation problem. The data set I will perform my experiments on contains endoscopic images of tools and their ground truth masks.
-> [!IMPORTANT]  
-> Unfortunately Github doesn't allow previews for this Jupyter Notebook because it's too large. Because of that I attached a pdf file of my code so people who are interested still can explore it from github. But the code is also available for downloading. I will also discuss the result and choice in this paper.
+# Surgical Instrument Segmentation in Endoscopy (Kvasir-Instrument)
 
-## The dataset
-The Kvasir-Instrument dataset (size 170 MB) contains 590 endoscopic tool images and their ground truth mask. The resolution of the image in the dataset varies from 720x576 to 1280x1024. The image file is encoded using jpeg compression. The dataset comes with pre-made test and train splits and in this experiment I will use it as it is. But I also left the option to create a custom split in the code.
-### The link to a dataset
-https://datasets.simula.no/kvasir-instrument/
+[![CI](https://github.com/S2k22/Medical-Segmentation-Kvasir-Instrument/actions/workflows/ci.yml/badge.svg)](https://github.com/S2k22/Medical-Segmentation-Kvasir-Instrument/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-## Metrics
-In this experiment, I used standard metrics such as:
-- Train loss/Validation Loss
-- Validation Accuracy/Train Accuracy
-- Train Dice/Validation Dice
-- Train IoU/Validation IoU
-- Best Epoch
+Pixel-level segmentation of surgical tools in gastrointestinal endoscopy images. I implemented
+three encoder–decoder architectures **from scratch in PyTorch** (U-Net, UNet++, and a Feature Pyramid
+Network) and compared them across learning rates and data-augmentation settings.
 
-![image](https://github.com/user-attachments/assets/c75e27db-7fda-4e2f-b15e-daaf0ee22bc6)
+**Best result: UNet++ with a pretrained ResNet34 encoder reached 0.942 Dice / 0.892 IoU on the
+held-out test images.**
 
-![image](https://github.com/user-attachments/assets/38133cf3-7a4d-4915-a685-48d8d0da97e3)
+<p align="center">
+  <img src="assets/predictions_unetpp.png" width="85%" alt="UNet++ predictions: image, ground truth, predicted mask">
+  <br><em>UNet++ (lr = 1e-3, with augmentation): input image, ground-truth mask and predicted mask</em>
+</p>
 
-![image](https://github.com/user-attachments/assets/7d0e9d26-33fe-427e-a323-d55eb5bf7448)
+---
 
+## Highlights
 
+- **Three architectures written by hand.** I didn't use `segmentation_models_pytorch`. Every model is built from basic PyTorch layers:
+  - **U-Net**: classic 4-level encoder–decoder with skip connections, trained from scratch (7.8M parameters)
+  - **UNet++**: nested, densely connected skip pathways on an ImageNet-pretrained ResNet34 encoder (23.6M)
+  - **FPN**: top-down feature pyramid with GroupNorm segmentation heads on ResNet34/50 (23.2M)
+- **Reproducible pipeline.** One CLI command downloads the data, trains, evaluates and saves plots, a checkpoint and metrics.
+- **Clean training loop.** Adam + `ReduceLROnPlateau`, early stopping, best-checkpoint selection on validation loss, and Dice / IoU / pixel-accuracy metrics computed per image.
+- **Augmentation study** with [Albumentations](https://albumentations.ai/): flips, 90° rotations, brightness/contrast and Gaussian noise.
+- **Engineering hygiene:** an installable package, unit tests for model shapes, gradients and metrics, Ruff linting, and GitHub Actions CI.
 
-I have also used a separate function to evaluate the model using the same metrics but on Test Split. The process of this goes:
-- Saving the best model during training (weights) according to the best validation loss,
-- load the best model,
-- setting it to evaluation mode,
-- computing metrics,
-- averaging across the batches,
-- Storing metrics.
- 
-This pipeline ensures that test metrics reflect the performance of the best model on unseen test data, without influencing training decisions.
+## Dataset
 
-## Activation Function (sigmoid)
-I use the BCEloss function in my work.  It transforms the raw network outputs (logits) into values between 0 and 1, which can be interpreted as probabilities for the binary classes (object vs. background).
-By applying the sigmoid activation, the model’s outputs meet this requirement, ensuring that the loss is computed correctly.
-The output values after the sigmoid make it easier to apply a threshold to convert the continuous probability map into a binary segmentation mask.
+[**Kvasir-Instrument**](https://datasets.simula.no/kvasir-instrument/) (Jha et al., 2021) contains 590
+endoscopic images (720×576 up to 1280×1024) of GI procedures with tools such as snares, balloons and biopsy
+forceps, plus binary ground-truth masks. The official split is 472 train / 118 test images. All images are
+resized to 256×256 and normalized with ImageNet statistics.
 
-![image](https://github.com/user-attachments/assets/c9be24a4-d5fe-4aab-971e-36eee91b8785)
+The dataset (~170 MB) is downloaded automatically the first time you run training.
 
-## Data preparation
-First step is setting dataset directories and splits.
+## Results
 
-Next we create a custom PyTorch Dataset class that takes in a list of image paths and mask paths. It reads images and converts the BGR image to RGB. The mask is read in grayscale, and then thresholded to obtain a binary mask.
+All 9 runs used Adam, `ReduceLROnPlateau` (factor 0.5, patience 2), early stopping (patience 5),
+batch size 8, BCE loss and up to 60 epochs. Metrics are for the checkpoint with the lowest validation
+loss, evaluated on the 118 official test images.
 
+| Augmentation | LR | Model | Best epoch | Pixel acc. | **Dice** | **IoU** |
+|:--|:--|:--|--:|--:|--:|--:|
+| ✗ | 1e-1 | FPN | 21 | 0.982 | 0.901 | 0.822 |
+| ✗ | 1e-1 | UNet++ | 24 | 0.983 | 0.904 | 0.827 |
+| ✗ | 1e-1 | U-Net | 45 | 0.984 | 0.912 | 0.839 |
+| ✓ | 1e-2 | FPN | 59 | 0.985 | 0.920 | 0.854 |
+| ✓ | 1e-2 | UNet++ | 51 | 0.986 | 0.919 | 0.852 |
+| ✓ | 1e-2 | U-Net | 34 | 0.979 | 0.884 | 0.793 |
+| ✓ | 1e-3 | FPN | 25 | 0.989 | 0.937 | 0.883 |
+| ✓ | 1e-3 | **UNet++** | 31 | **0.990** | **0.942** | **0.892** |
+| ✓ | 1e-3 | U-Net | 37 | 0.982 | 0.899 | 0.819 |
 
+Raw numbers: [`results/original_experiments.csv`](results/original_experiments.csv)
 
-Then we apply the default transformation pipeline. This default pipeline resizes the image and mask to 256×256, normalizes the pixel values, and converts them to tensors. And then we make sure that the mask has the expected shape.
+<p align="center">
+  <img src="assets/curves_unetpp_lr1e-3_aug.png" width="100%" alt="UNet++ training curves">
+  <br><em>Training and validation curves for the best run (UNet++, lr = 1e-3, augmentation)</em>
+</p>
 
-After that we do data splitting and verification (making sure that the data set correctly before training)
+### Takeaways
 
-## Augmentations
-I used the Albumentations library to define augmentations in this work.
-- A.HorizontalFlip(p=0.5). With 50% chance flips the image horizontally.
-- A.VerticalFlip(p=0.5). Similarly, with a 50% probability, this flips the image vertically.
-- A.RandomRotate90(p=0.5). This rotates the image by 90 degrees, 180 degrees, or 270 degrees randomly with a 50% chance.
-- A.RandomBrightnessContrast(p=0.2). With a 20% chance, this randomly adjusts the brightness and contrast of the image.
-- A.GaussNoise(p=0.2). This adds Gaussian noise to the image with a 20% probability.
-- A.Resize(256, 256). This resizes both the image and the mask to 256×256 pixels.
-- A.Normalize. This normalizes the pixel values based on the default mean and standard deviation
-- ToTensorV2. Converts the processed images and masks into PyTorch tensors.
+- **Pretrained encoders win once training is tuned.** With augmentation and lr = 1e-3, both ResNet34-based
+  models (UNet++ and FPN) beat the from-scratch U-Net by about 4 Dice points. UNet++'s nested skip
+  connections gave it a small edge over FPN.
+- **The learning rate mattered more than the architecture.** At lr = 0.1 with Adam, the pretrained models
+  lost most of their advantage, probably because large updates overwrite the ImageNet features. The
+  smaller U-Net trained from scratch was the most robust in that setting.
+- **Augmentation together with a lower learning rate** raised the best Dice from 0.912 to 0.942.
+- Pixel accuracy is about 98% for every model because most pixels are background. That's why
+  **Dice and IoU** are the metrics used to compare models.
 
-There is also a separate option called No Augmentation, it only consists of resize, normalize and convert to tensor. It is made so I can train a model with or without augmentation.
+> **Methodology note:** In the original experiment notebook, the official test split was also used as
+> the validation set for early stopping and LR scheduling. That makes the numbers above slightly
+> optimistic. The refactored training code in this repository fixes this: it holds out 10% of the
+> training set for validation and touches the test split only once, for the final evaluation.
 
-# Models
-In this experiment I have used and compared 3 Deep Learning models: U-Net, U-Net++, FPN. And in this section I will try to explain how they work and their structure.
+## Quick start
 
-## U-net
-My U-Net model follows a classic encoder–decoder network designed for image segmentation. The design emphasizes a symmetric architecture with skip connections that transfer high-resolution features from the encoder to the decoder.
+```bash
+git clone https://github.com/S2k22/Medical-Segmentation-Kvasir-Instrument.git
+cd Medical-Segmentation-Kvasir-Instrument
+pip install -e ".[dev]"          # or: pip install -r requirements.txt
 
-Encoder:
-- Convolutional Blocks. Each block applies two successive 3×3 convolutions, each followed by Batch Normalization and a ReLU activation.
-- Downsampling. After each block, a max pooling layer reduces the spatial dimensions by a factor of 2, which helps the network learn context and global features.
+# Train and evaluate all three models (downloads the dataset to ./data on first run)
+python scripts/train.py --model all --lr 1e-3
 
-Bottleneck:
-- Located at the last parts of the network, the bottleneck is made to capture the most abstract and compressed representation of the input. It is implemented with the same convolutional block structure but with a higher number of features (channels).
+# A single model, without augmentation
+python scripts/train.py --model unetpp --lr 1e-3 --no-augment
 
-Decoder:
-- Upsampling. The decoder uses transposed convolutions to upsample feature maps. This increases the spatial dimensions gradually.
-- Skip Connections. At each decoding level, the upsampled feature map is concatenated with the corresponding encoder output. These skip connections help recover spatial details lost during downsampling.
-- Decoder Blocks. The concatenated features are then processed with additional convolutional blocks to refine the segmentation map.
+# Run the tests
+pytest
+```
 
-## U-net++
-UNet++ builds on the original UNet design by introducing nested skip connections and feature re-aggregation. The idea is to bridge the gap between the decoder and encoder and improve performance.
+Each run writes to `runs/<model>_lr<lr>_<aug|noaug>/`:
 
-Encoder:
-- Pretrained Backbone. The model uses a pre-trained ResNet34 as its encoder. This backbone provides robust, multi-scale features and consists of 4 layers starting with 64 and doubling its size till it reaches 512 in the last layer.
-- The layers are processed sequentially, with intermediate downsampling similar to UNet.
+| File | Contents |
+|:--|:--|
+| `best_model.pth` | weights of the checkpoint with the lowest validation loss |
+| `history.csv` | per-epoch loss, Dice, IoU and accuracy (train and val) |
+| `curves.png` | training curves |
+| `predictions.png` | sample test predictions |
+| `summary.json` | best epoch and final test metrics |
 
-Decoder:
-- Structure. The custom UNetPlusPlusDecoder accepts encoder outputs in the order [x4, x3, x2, x1] (from deepest to shallowest) and processes them using nested convolution blocks.
-- Convolution Blocks. The decoder creates intermediate outputs (e.g., x0_0, x1_0, x1_1, etc.) by progressively upsampling deeper features and concatenating them with features from shallower layers.
-- Upsampling. Features are upsampled using interpolation to match the spatial dimensions before concatenation.
-- Refinement. After concatenation, convolutional blocks refine the merged features.
+The device is picked automatically in this order: CUDA, Apple MPS, DirectML (AMD/Intel GPUs on Windows
+via `pip install -e ".[directml]"`), then CPU. Run `python scripts/train.py --help` for every option.
 
-Final Segmentation:
-- A segmentation head (a 3×3 convolution) produces the output feature map, which is then upsampled to match the original input size.
-- The final activation is a sigmoid to output probabilities for binary segmentation.
+## Project structure
 
-## FPN
-Designed to leverage features at multiple scales, making it effective for detecting objects of various sizes.
-It builds a pyramid of features by combining high-level semantic information with low-level spatial details.
-Encoder:
-- Supports the same pretrained ResNet34 or ResNet50. The difference between these two is in the number of channels. ResNet50 starts the first layer with 256 channels.
-- The encoder first processes the image through an initial convolution, batch normalization, ReLU, and max pooling before extracting features from subsequent layers.
+```
+├── src/kvasir_seg/
+│   ├── data.py           # download, train/val/test splits, augmentations, Dataset
+│   ├── models/
+│   │   ├── unet.py       # U-Net from scratch
+│   │   ├── unetpp.py     # UNet++ decoder on ResNet34
+│   │   ├── fpn.py        # Feature Pyramid Network on ResNet34/50
+│   │   └── encoders.py   # pretrained ResNet feature extractor
+│   ├── engine.py         # training/evaluation loop, early stopping, checkpointing
+│   ├── metrics.py        # Dice, IoU, pixel accuracy
+│   └── viz.py            # training curves and prediction plots
+├── scripts/train.py      # CLI entry point
+├── tests/                # model shape, gradient and metric tests
+├── notebooks/            # original exploratory notebook (outputs cleared)
+├── results/              # metrics from the original experiments
+└── assets/               # figures used in this README
+```
 
-Decoder:
-- Pyramid Construction. The decoder builds multiple feature maps, starting from the deepest encoder feature
-- FPNBlock. Each FPNBlock takes a higher-level feature, upsamples it (using nearest or bilinear interpolation), and adds it to a transformed version of a skip connection from the encoder. This is typically performed after aligning spatial dimensions.
-- Segmentation Blocks. Each pyramid level is further processed by a segmentation block that applies a series of 3×3 convolutions with Group Normalization and ReLU. These blocks ensure that all pyramid features reach a common resolution.
+## Architectures
 
-Feature Merging:
-- The refined features from each pyramid level are merged together using a merging block. The merge policy in my code is set to "add", meaning that features are combined via element-wise summation.
+| | U-Net | UNet++ | FPN |
+|:--|:--|:--|:--|
+| Encoder | 4 × (Conv-BN-ReLU)×2, trained from scratch | ResNet34 (ImageNet) | ResNet34 / ResNet50 (ImageNet) |
+| Decoder | Transposed convs + concatenated skips | Nested dense skip nodes, bilinear upsampling | Top-down pathway + lateral 1×1 convs, per-level GN segmentation heads, merged by summation |
+| Output | 1×1 conv → logits | 3×3 conv → upsample → logits | 1×1 conv → upsample → logits |
+| Params | 7.8M | 23.6M | 23.2M |
 
-Final Segmentation:
-- A final segmentation head reduces the merged feature map to the desired number of output channels. The result is then upsampled to match the original input dimensions, and a sigmoid activation produces the final segmentation map.
+The models output logits and are trained with `BCEWithLogitsLoss`, which is numerically more stable than
+applying a sigmoid and then `BCELoss`. At inference, a sigmoid and a 0.5 threshold produce the binary mask.
 
-## Optimizer, Learning Rate Scheduler and Hyperparameters.
+## Possible next steps
 
-Adam Optimizer:
-- Adam combines the benefits of both Momentum and RMSprop. It maintains per-parameter learning rates and adapts them based on estimates of first and second moments of the gradients.
+- Dice + BCE compound loss and test-time augmentation
+- Cross-validation for more reliable comparisons on this small dataset
+- Higher input resolution (the masks have fine instrument edges)
+- Export to ONNX and a small Gradio demo
 
-Reduce on Plateau:
-- This scheduler monitors a specific metric (in my case, the validation loss) and reduces the learning rate by a given factor (0.5) if the metric does not improve for a specified number of epochs (patience = 2 in my case).
+## References
 
-Hyperparameters:
-- I didn't include too many parameters in this experiment but the ones that are there were chosen after a couple of experiments (not all of them were included). It is worth mentioning that Adam often gets used with a small learning rate (0.001 or even 0.0001) in my experime,nt I started with 0.1 and decreased it in the next experiments.
+- Jha et al., *Kvasir-Instrument: Diagnostic and therapeutic tool segmentation dataset in gastrointestinal endoscopy*, MMM 2021
+- Ronneberger et al., *U-Net: Convolutional Networks for Biomedical Image Segmentation*, MICCAI 2015
+- Zhou et al., *UNet++: A Nested U-Net Architecture for Medical Image Segmentation*, DLMIA 2018
+- Lin et al., *Feature Pyramid Networks for Object Detection*, CVPR 2017
 
-## Running models, Results and Explanation.
+## Author
 
-The number of epochs was set to a 60, not all the models (across different experiments) reached to the 60' epoch, the early stopping prevented the model to go further with no development after patience reached a value of 5. The three experiments that I want to highlight in this paper was (The upper model is FPN, the middle is U-Net, the down one is U-Net++) and:
+**Mykhailo Karpiuk**, [GitHub @S2k22](https://github.com/S2k22)
 
-### Models + No Augmentation and Learning Rate of 0.1
-
-![image](https://github.com/user-attachments/assets/d2733556-3860-45a7-ad0a-d523d6a0765c)
-
-
-### Models + Augmentation and Learning Rate of 0.01
-
-![image](https://github.com/user-attachments/assets/b990030e-82c6-4016-b5a3-75031f3bc574)
-
-
-### Models + Augmentation and Learning Rate of 0.001
-
-![image](https://github.com/user-attachments/assets/60359995-1114-4a38-a117-0f7f205af3d8)
-
-
-Not surprisingly but model with augmentation performed better than the one without it, with one exception. And across all 3 experiments models with Augmentation + a learning rate of 0.001 performed the best. The best model, out of the 3 presented, according to test metrics were U-Net and the second best was FPN.
-It is worth mentioning that in the first experiment with no augmentation and relatively high learning rate for this optimizer, U-NET ++ outperformed the rest of the models.
-If I have to make a suggestion why that happened then I would probably say that it was because augmentation and high learning rate did not allow other models to get available variability and take advantage of high dimensionality. Also, more complex models(FPN) tend to overfit with no augmentation. Under these conditions, nested skip connections might help the model explore a larger space of representations quickly
-and the aggressive learning rate forces rapid changes. But when the augmentation was applied and learning rates were tuned down, it caused slower convergence and maybe an overfitted model more than before. In other word,s its complexity is a double-edged sword.
-
-## I will highlight the best models out of each experiment in this section
-
-### Predictions U-Net++ + No Augmentation and Learning Rate of 0.1
-
-![image](https://github.com/user-attachments/assets/7a891122-06c5-4e50-b417-43ed5c4d8d5e)
-
-### Predictions U-Net + No Augmentation and Learning Rate of 0.01
-
-![image](https://github.com/user-attachments/assets/01c2eca7-7c4b-442a-8e8c-0799e58ae926)
-
-### Predictions U-Net + No Augmentation and Learning Rate of 0.01
-
-![image](https://github.com/user-attachments/assets/2f35aa8c-ddff-4f17-ad3e-bb42c916206b)
-
-
-## Conclusion
-In conclusion we can say that the classic-cal U-Net architecture outperforms the UNet ++ model. Additionally, U-Net is 2× faster than the UNet++. This is because U-Net uses basic convolution blocks, whereas DoubleUNet uses a pre-trained encoder. More fine-tuning and adjusting the hyperparameters on the similar datasets, adjusting the augmentation can improve the results I observed.
-With the goal of perfection the performance on the localization and segmentation will theoretically allow to make this technology useful in the medical environment.
- 
-
-
-
-
-
-
-
-  
+Licensed under the [MIT License](LICENSE).
